@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import Closet3DView from "./Closet3DView.tsx";
 
@@ -15,6 +15,11 @@ const App: React.FC = () => {
   const [shelfColor, setShelfColor] = useState("#D2B48C"); // Tan
   const [language, setLanguage] = useState<string>("he"); // הוספת בחירת שפה
 
+  useEffect(() => {
+    // Update the dir attribute on the body element whenever the language changes
+    document.body.setAttribute('dir', getDirection(language));
+  }, [language]);
+  
   const translations = {
     en: {
       closetWidth: "Closet Width",
@@ -100,7 +105,7 @@ const App: React.FC = () => {
       const result = closetHeightNum - 1.7 * 2; // Subtracting the thickness of top and bottom panels (1.7cm each)
       return {
         value: result.toFixed(2),
-        progress: `${closetHeightNum} - 3.4 = ${result.toFixed(2)}`,
+        progress: `${closetHeightNum} - 1.7 * 2 = ${result.toFixed(2)}`,
       };
     }
     return { value: "", progress: "" };
@@ -156,6 +161,10 @@ const App: React.FC = () => {
     return 2; // תמיד צריך 2 קורות פנימיות כאשר יש 3 דלתות
   };
 
+  const getDirection = (lang: string) => {
+    return lang === 'he' || lang === 'ar' ? 'rtl' : 'ltr';
+  };
+
   // שליפת התוצאות של החישובים
   const doorWidth = calculateDoorWidth();
   const doorHeight = calculateDoorHeight();
@@ -165,7 +174,7 @@ const App: React.FC = () => {
   const internalBeams = calculateInternalBeams();
 
   return (
-    <div className="App">
+    <div className="App" dir={getDirection(language)}>
       <h1>{t.calculationResults}</h1>
       <div>
         <label>
@@ -218,7 +227,7 @@ const App: React.FC = () => {
           />
         </label>
         <label>
-          Number of Shelves:
+          {t.shelfCount}:
           <input
             type="number"
             value={numShelves}
@@ -260,27 +269,27 @@ const App: React.FC = () => {
           {t.formulas} + {t.calculationResults}
         </h3>
         <p>
-          {t.doorWidth} Formula: ({t.closetWidth} - 2 * {t.bufferWidth}) /{" "}
+          {t.doorWidth} : ({t.closetWidth} - 2 * {t.bufferWidth}) /{" "}
           {t.doorNumbers} = {doorWidth.progress} = {doorWidth.value} {t.cm}
         </p>
         <p>
-          {t.doorHeight} Formula: {doorHeight.progress} = {doorHeight.value}{" "}
+          {t.doorHeight} : {doorHeight.progress} = {doorHeight.value}{" "}
           {t.cm}
         </p>
         <p>
-          {t.internalBeamHeight} Formula: {internalBeamHeight.progress} ={" "}
+          {t.internalBeamHeight} : {internalBeamHeight.progress} ={" "}
           {internalBeamHeight.value} {t.cm}
         </p>
         <p>
-          {t.shelfWidth} Formula: ({t.closetWidth} - 2 * {t.bufferWidth}) /{" "}
+          {t.shelfWidth} : ({t.closetWidth} - 2 * {t.bufferWidth}) /{" "}
           {t.shelfCount} = {shelfWidth.progress} = {shelfWidth.value} {t.cm}
         </p>
         <p>
-          {t.shelfHeight} Formula: {t.closetHeight} / {t.shelfCount} ={" "}
+          {t.shelfHeight} : {t.closetHeight} / {t.shelfCount} ={" "}
           {shelfHeight.progress} = {shelfHeight.value} {t.cm}
         </p>
         <p>
-          {t.shelfDepth} Formula: {t.closetDepth} = {shelfDepth.progress} ={" "}
+          {t.shelfDepth} : {t.closetDepth} = {shelfDepth.progress} ={" "}
           {shelfDepth.value} {t.cm}
         </p>
         <p>
