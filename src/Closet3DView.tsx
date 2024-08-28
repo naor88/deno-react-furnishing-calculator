@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 // @ts-ignore
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
@@ -10,8 +10,8 @@ interface Closet3DViewProps {
   doorColor: string;
   shelfColor: string;
   structureColor: string;
-  dividerColor?: string; // New prop for divider color with an optional type
-  sidePanelColor?: string; // New prop for side panel color with an optional type
+  dividerColor?: string;
+  sidePanelColor?: string;
   numDoors: number;
   numShelves: number;
 }
@@ -23,12 +23,16 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
   doorColor,
   shelfColor,
   structureColor,
-  dividerColor = 'rgb(57, 255, 20)', // Default neon green color
-  sidePanelColor = 'rgb(0, 0, 255)', // Default neon blue color
+  dividerColor = 'rgb(57, 255, 20)',
+  sidePanelColor = 'rgb(0, 0, 255)',
   numDoors,
   numShelves,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const closetGroupRef = useRef<THREE.Group | null>(null); // Ref for closet group
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMousePosition, setLastMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     // Cleanup previous scene
@@ -46,7 +50,7 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
       0.1,
       2000
     );
-    camera.position.set(0, height / 2, depth * 3);
+    camera.position.set(0, height / 3, depth * 3); // Adjusted initial camera position
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(
@@ -76,7 +80,6 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     const shelfMaterial = new THREE.MeshPhongMaterial({ color: shelfColor });
     const dividerMaterial = new THREE.MeshPhongMaterial({ color: dividerColor });
     const sidePanelMaterial = new THREE.MeshPhongMaterial({ color: sidePanelColor });
-    // Parse RGBA color for door material
     const [r, g, b, a] = doorColor.match(/\d+/g)?.map(Number) || [255,0,0,0.5];
     const doorMaterial = new THREE.MeshPhongMaterial({
       color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
@@ -87,16 +90,20 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     // Closet structure (sides, top, bottom, back)
     const thickness = 2; // Thickness of the panels
 
+    // Create a group to hold the closet components
+    const closetGroup = new THREE.Group();
+    closetGroupRef.current = closetGroup; // Save reference
+
     // Left Side
     const leftSideGeometry = new THREE.BoxGeometry(thickness, height, depth);
     const leftSide = new THREE.Mesh(leftSideGeometry, sidePanelMaterial);
     leftSide.position.set(-width / 2 + thickness / 2, height / 2, 0);
-    scene.add(leftSide);
+    closetGroup.add(leftSide);
 
     // Right Side
     const rightSide = leftSide.clone();
     rightSide.position.set(width / 2 - thickness / 2, height / 2, 0);
-    scene.add(rightSide);
+    closetGroup.add(rightSide);
 
     // Top Panel
     const topGeometry = new THREE.BoxGeometry(
@@ -106,12 +113,12 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     );
     const topPanel = new THREE.Mesh(topGeometry, structureMaterial);
     topPanel.position.set(0, height - thickness / 2, 0);
-    scene.add(topPanel);
+    closetGroup.add(topPanel);
 
     // Bottom Panel
     const bottomPanel = topPanel.clone();
     bottomPanel.position.set(0, thickness / 2, 0);
-    scene.add(bottomPanel);
+    closetGroup.add(bottomPanel);
 
     // Back Panel
     const backGeometry = new THREE.BoxGeometry(
@@ -121,7 +128,7 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     );
     const backPanel = new THREE.Mesh(backGeometry, structureMaterial);
     backPanel.position.set(0, height / 2, -depth / 2 + thickness / 2);
-    scene.add(backPanel);
+    closetGroup.add(backPanel);
 
     // Shelves
     const shelfHeightGap = (height - 2 * thickness) / (numShelves + 1);
@@ -135,8 +142,8 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
         shelfDepth
       );
       const shelf = new THREE.Mesh(shelfGeometry, shelfMaterial);
-      shelf.position.set(0, i * shelfHeightGap, -thickness / 2); // Corrected shelf position
-      scene.add(shelf);
+      shelf.position.set(0, i * shelfHeightGap, -thickness / 2);
+      closetGroup.add(shelf);
     }
 
     // Internal Dividers
@@ -155,7 +162,7 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
       );
       const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
       divider.position.set(-width / 2 + i * dividerGap, height / 2, 0);
-      scene.add(divider);
+      closetGroup.add(divider);
     }
 
     // Doors
@@ -174,8 +181,41 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
         height / 2,
         depth / 2 - thickness / 2
       );
-      scene.add(door);
+      closetGroup.add(door);
     }
+
+    // Set the initial position of the closet group lower on the Y axis
+    closetGroup.position.set(0, -height / 2, 0); // Adjusted initial closet position
+    scene.add(closetGroup);
+
+    // Mouse events for dragging
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.ctrlKey || event.shiftKey) {
+        setIsDragging(true);
+        setLastMousePosition({ x: event.clientX, y: event.clientY });
+      }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (isDragging && closetGroupRef.current) {
+        const deltaX = event.clientX - lastMousePosition.x;
+        const deltaY = event.clientY - lastMousePosition.y;
+
+        closetGroupRef.current.position.x += deltaX * 0.01; // Adjust sensitivity as needed
+        closetGroupRef.current.position.y -= deltaY * 0.01;
+
+        setLastMousePosition({ x: event.clientX, y: event.clientY });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    // Add event listeners
+    renderer.domElement.addEventListener('mousedown', handleMouseDown);
+    renderer.domElement.addEventListener('mousemove', handleMouseMove);
+    renderer.domElement.addEventListener('mouseup', handleMouseUp);
 
     // Animation Loop
     const animate = () => {
@@ -200,6 +240,9 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     // Cleanup on unmount
     return () => {
       window.removeEventListener("resize", handleResize);
+      renderer.domElement.removeEventListener('mousedown', handleMouseDown);
+      renderer.domElement.removeEventListener('mousemove', handleMouseMove);
+      renderer.domElement.removeEventListener('mouseup', handleMouseUp);
       controls.dispose();
       renderer.dispose();
     };
@@ -210,10 +253,12 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     doorColor,
     shelfColor,
     structureColor,
-    dividerColor, // Added dependency
-    sidePanelColor, // Added dependency
+    dividerColor,
+    sidePanelColor,
     numDoors,
     numShelves,
+    isDragging,
+    lastMousePosition,
   ]);
 
   return <div ref={mountRef} style={{ width: "100%", height: "600px" }} />;
