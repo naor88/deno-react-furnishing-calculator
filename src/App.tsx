@@ -328,7 +328,7 @@ const App: React.FC = () => {
       </div>
       <Closet3DView
         width={+closetWidth}
-        height={+closetWidth}
+        height={+closetHeight}
         depth={+closetDepth}
         numDoors={+doorNumbers}
         numShelves={numShelves}
