@@ -11,15 +11,16 @@ const App: React.FC = () => {
   const [doorNumbers, setDoorNumbers] = useState<number | string>("3"); // ערך ברירת מחדל הוא 3
   const [numShelves, setNumShelves] = useState(5);
   const [structureColor, setStructureColor] = useState("#8B4513"); // SaddleBrown
-  const [doorColor, setDoorColor] = useState("#FFFFFF"); // White
+  const [doorColor, setDoorColor] = useState("rgba(255, 0, 0, 0.5)"); // White
+  const [opacity, setOpacity] = useState(0.5); // Default opacity (1 = fully opaque)
   const [shelfColor, setShelfColor] = useState("#D2B48C"); // Tan
-  const [language, setLanguage] = useState<string>("he"); // הוספת בחירת שפה
+  const [language, setLanguage] = useState<'en'|'he'>("he"); // הוספת בחירת שפה
 
   useEffect(() => {
     // Update the dir attribute on the body element whenever the language changes
-    document.body.setAttribute('dir', getDirection(language));
+    document.body.setAttribute("dir", getDirection(language));
   }, [language]);
-  
+
   const translations = {
     en: {
       closetWidth: "Closet Width",
@@ -162,7 +163,14 @@ const App: React.FC = () => {
   };
 
   const getDirection = (lang: string) => {
-    return lang === 'he' || lang === 'ar' ? 'rtl' : 'ltr';
+    return lang === "he" || lang === "ar" ? "rtl" : "ltr";
+  };
+
+  const rgbaColor = () => {
+    const r = parseInt(doorColor.slice(1, 3), 16);
+    const g = parseInt(doorColor.slice(3, 5), 16);
+    const b = parseInt(doorColor.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
   // שליפת התוצאות של החישובים
@@ -172,6 +180,10 @@ const App: React.FC = () => {
   const { shelfWidth, shelfHeight, shelfDepth } = calculateShelfDimensions();
   const externalBeams = calculateExternalBeams();
   const internalBeams = calculateInternalBeams();
+
+  const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOpacity(parseFloat(e.target.value));
+  };
 
   return (
     <div className="App" dir={getDirection(language)}>
@@ -255,6 +267,15 @@ const App: React.FC = () => {
             onChange={(e) => setDoorColor(e.target.value)}
           />
         </label>
+        <label>Opacity:</label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={opacity}
+          onChange={handleOpacityChange}
+        />
         <label>
           Shelf Color:
           <input
@@ -273,8 +294,7 @@ const App: React.FC = () => {
           {t.doorNumbers} = {doorWidth.progress} = {doorWidth.value} {t.cm}
         </p>
         <p>
-          {t.doorHeight} : {doorHeight.progress} = {doorHeight.value}{" "}
-          {t.cm}
+          {t.doorHeight} : {doorHeight.progress} = {doorHeight.value} {t.cm}
         </p>
         <p>
           {t.internalBeamHeight} : {internalBeamHeight.progress} ={" "}
@@ -301,7 +321,7 @@ const App: React.FC = () => {
       </div>
       <div>
         <label>Language:</label>
-        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+        <select value={language} onChange={(e) => setLanguage(e.target.value as 'en')}>
           <option value="he">עברית</option>
           <option value="en">English</option>
         </select>

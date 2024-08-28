@@ -1,6 +1,6 @@
-// Closet3DView.tsx
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+// @ts-ignore
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 interface Closet3DViewProps {
@@ -10,6 +10,8 @@ interface Closet3DViewProps {
   doorColor: string;
   shelfColor: string;
   structureColor: string;
+  dividerColor?: string; // New prop for divider color with an optional type
+  sidePanelColor?: string; // New prop for side panel color with an optional type
   numDoors: number;
   numShelves: number;
 }
@@ -21,6 +23,8 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
   doorColor,
   shelfColor,
   structureColor,
+  dividerColor = 'rgb(57, 255, 20)', // Default neon green color
+  sidePanelColor = 'rgb(0, 0, 255)', // Default neon blue color
   numDoors,
   numShelves,
 }) => {
@@ -45,7 +49,10 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     camera.position.set(0, height / 2, depth * 3);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(mountRef.current!.clientWidth, mountRef.current!.clientHeight);
+    renderer.setSize(
+      mountRef.current!.clientWidth,
+      mountRef.current!.clientHeight
+    );
     mountRef.current!.appendChild(renderer.domElement);
 
     // OrbitControls
@@ -63,16 +70,26 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     scene.add(directionalLight);
 
     // Materials
-    const structureMaterial = new THREE.MeshPhongMaterial({ color: structureColor });
-    const doorMaterial = new THREE.MeshPhongMaterial({ color: doorColor });
+    const structureMaterial = new THREE.MeshPhongMaterial({
+      color: structureColor,
+    });
     const shelfMaterial = new THREE.MeshPhongMaterial({ color: shelfColor });
+    const dividerMaterial = new THREE.MeshPhongMaterial({ color: dividerColor });
+    const sidePanelMaterial = new THREE.MeshPhongMaterial({ color: sidePanelColor });
+    // Parse RGBA color for door material
+    const [r, g, b, a] = doorColor.match(/\d+/g)?.map(Number) || [255,0,0,0.5];
+    const doorMaterial = new THREE.MeshPhongMaterial({
+      color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
+      transparent: true,
+      opacity: a / 255,
+    });
 
     // Closet structure (sides, top, bottom, back)
     const thickness = 2; // Thickness of the panels
 
     // Left Side
     const leftSideGeometry = new THREE.BoxGeometry(thickness, height, depth);
-    const leftSide = new THREE.Mesh(leftSideGeometry, structureMaterial);
+    const leftSide = new THREE.Mesh(leftSideGeometry, sidePanelMaterial);
     leftSide.position.set(-width / 2 + thickness / 2, height / 2, 0);
     scene.add(leftSide);
 
@@ -82,7 +99,11 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     scene.add(rightSide);
 
     // Top Panel
-    const topGeometry = new THREE.BoxGeometry(width - 2 * thickness, thickness, depth);
+    const topGeometry = new THREE.BoxGeometry(
+      width - 2 * thickness,
+      thickness,
+      depth
+    );
     const topPanel = new THREE.Mesh(topGeometry, structureMaterial);
     topPanel.position.set(0, height - thickness / 2, 0);
     scene.add(topPanel);
@@ -93,7 +114,11 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     scene.add(bottomPanel);
 
     // Back Panel
-    const backGeometry = new THREE.BoxGeometry(width - 2 * thickness, height - 2 * thickness, thickness);
+    const backGeometry = new THREE.BoxGeometry(
+      width - 2 * thickness,
+      height - 2 * thickness,
+      thickness
+    );
     const backPanel = new THREE.Mesh(backGeometry, structureMaterial);
     backPanel.position.set(0, height / 2, -depth / 2 + thickness / 2);
     scene.add(backPanel);
@@ -104,10 +129,33 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     const shelfDepth = depth - thickness;
 
     for (let i = 1; i <= numShelves; i++) {
-      const shelfGeometry = new THREE.BoxGeometry(shelfWidth, thickness, shelfDepth);
+      const shelfGeometry = new THREE.BoxGeometry(
+        shelfWidth,
+        thickness,
+        shelfDepth
+      );
       const shelf = new THREE.Mesh(shelfGeometry, shelfMaterial);
       shelf.position.set(0, i * shelfHeightGap, -thickness / 2); // Corrected shelf position
       scene.add(shelf);
+    }
+
+    // Internal Dividers
+    const dividerWidth = thickness;
+    const dividerHeight = height - 2 * thickness;
+    const dividerDepth = depth - thickness;
+
+    const numDividers = numDoors - 1;
+    const dividerGap = width / numDoors;
+
+    for (let i = 1; i <= numDividers; i++) {
+      const dividerGeometry = new THREE.BoxGeometry(
+        dividerWidth,
+        dividerHeight,
+        dividerDepth
+      );
+      const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
+      divider.position.set(-width / 2 + i * dividerGap, height / 2, 0);
+      scene.add(divider);
     }
 
     // Doors
@@ -115,7 +163,11 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
     const doorHeight = height - thickness * 2;
 
     for (let i = 0; i < numDoors; i++) {
-      const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, thickness);
+      const doorGeometry = new THREE.BoxGeometry(
+        doorWidth,
+        doorHeight,
+        thickness
+      );
       const door = new THREE.Mesh(doorGeometry, doorMaterial);
       door.position.set(
         -width / 2 + thickness + doorWidth / 2 + i * (doorWidth + thickness),
@@ -143,17 +195,28 @@ const Closet3DView: React.FC<Closet3DViewProps> = ({
         camera.updateProjectionMatrix();
       }
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     // Cleanup on unmount
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       controls.dispose();
       renderer.dispose();
     };
-  }, [width, height, depth, doorColor, shelfColor, structureColor, numDoors, numShelves]);
+  }, [
+    width,
+    height,
+    depth,
+    doorColor,
+    shelfColor,
+    structureColor,
+    dividerColor, // Added dependency
+    sidePanelColor, // Added dependency
+    numDoors,
+    numShelves,
+  ]);
 
-  return <div ref={mountRef} style={{ width: '100%', height: '600px' }} />;
+  return <div ref={mountRef} style={{ width: "100%", height: "600px" }} />;
 };
 
 export default Closet3DView;
